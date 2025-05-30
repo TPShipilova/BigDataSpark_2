@@ -28,7 +28,6 @@ def read_postgres_tables(spark):
 
 
 def prepare_dashboards(tables):
-    # Создаем алиасы для таблиц
     fact = tables["fact_sales"].alias("fact")
     products = tables["dim_product"].alias("prod")
     customers = tables["dim_customer"].alias("cust")
@@ -36,7 +35,6 @@ def prepare_dashboards(tables):
     suppliers = tables["dim_supplier"].alias("supp")
     dates = tables["dim_date"].alias("date")
 
-    # 1. Витрина продаж по продуктам
     product_sales = fact.join(products, fact.sale_product_id == products.product_id) \
         .groupBy(products["product_id"], products["product_name"], products["product_category"]) \
         .agg(
@@ -50,7 +48,6 @@ def prepare_dashboards(tables):
         "product_sales": product_sales,
         "top_products": product_sales.orderBy(desc("total_sales")).limit(10),
 
-        # 2. Витрина продаж по клиентам
         "customer_sales": fact.join(customers, fact.sale_customer_id == customers.customer_id) \
             .groupBy(customers["customer_id"], customers["customer_first_name"],
                      customers["customer_last_name"], customers["customer_country"]) \
@@ -66,7 +63,6 @@ def prepare_dashboards(tables):
             .agg(sum(fact["sale_total_price"]).alias("total_spent")) \
             .orderBy(desc("total_spent")).limit(10),
 
-        # 3. Витрина продаж по времени
         "time_sales": fact.join(dates, fact.sale_date == dates.date) \
             .groupBy(dates["year"], dates["month"]) \
             .agg(
@@ -75,7 +71,6 @@ def prepare_dashboards(tables):
             count(fact["sale_id"]).alias("order_count")
         ),
 
-        # 4. Витрина продаж по магазинам
         "store_sales": fact.join(stores, fact.store_name == stores.store_id) \
             .groupBy(stores["store_id"], stores["store_city"], stores["store_country"]) \
             .agg(
@@ -89,7 +84,6 @@ def prepare_dashboards(tables):
             .agg(sum(fact["sale_total_price"]).alias("total_revenue")) \
             .orderBy(desc("total_revenue")).limit(5),
 
-        # 5. Витрина продаж по поставщикам
         "supplier_sales": fact.join(suppliers, fact.supplier_name == suppliers.supplier_id) \
             .join(products, fact.sale_product_id == products.product_id) \
             .groupBy(suppliers["supplier_id"], suppliers["supplier_country"]) \
@@ -104,7 +98,6 @@ def prepare_dashboards(tables):
             .agg(sum(fact["sale_total_price"]).alias("total_revenue")) \
             .orderBy(desc("total_revenue")).limit(5),
 
-        # 6. Витрина качества продукции
         "product_quality": products.join(fact, products.product_id == fact.sale_product_id, "left") \
             .groupBy(products["product_id"], products["product_name"], products["product_category"]) \
             .agg(
@@ -118,17 +111,16 @@ def prepare_dashboards(tables):
 
 
 def write_to_clickhouse(dashboards):
-    clickhouse_url = "jdbc:ch://clickhouse:8123/big_data_2"  # Указываем конкретную БД
+    clickhouse_url = "jdbc:ch://clickhouse:8123/big_data_2" 
     clickhouse_properties = {
         "user": "admin",
-        "password": "admin",  # Используем ваши credentials
+        "password": "admin",
         "driver": "com.clickhouse.jdbc.ClickHouseDriver",
         "socket_timeout": "300000",
         "batchsize": "100000",
         "numPartitions": "2"
     }
 
-    # Маппинг дашбордов на таблицы ClickHouse
     mappings = {
         "product_sales": "product_sales_dashboard",
         "top_products": "top_products",

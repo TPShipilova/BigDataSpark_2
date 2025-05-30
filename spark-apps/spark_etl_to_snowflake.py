@@ -1,12 +1,10 @@
 import pyspark.sql
 from pyspark.sql.functions import col, year, month, dayofmonth, quarter, dayofweek
 
-# Инициализация Spark сессии
 spark = pyspark.sql.SparkSession.builder \
     .appName("PostgreSQL to Snowflake ETL") \
     .getOrCreate()
 
-# Убедитесь, что эти данные совпадают с docker-compose.yml
 jdbc_url = "jdbc:postgresql://postgres:5432/sales_db"
 connection_properties = {
     "user": "postgres",
@@ -14,12 +12,8 @@ connection_properties = {
     "driver": "org.postgresql.Driver"
 }
 
-# Чтение исходных данных
 df = spark.read.jdbc(url=jdbc_url, table="mock_data", properties=connection_properties)
 
-# Извлечение измерений
-
-# DimCustomer
 dim_customer = df.select(
     col("sale_customer_id").alias("customer_id"),
     col("customer_first_name"),
@@ -33,7 +27,6 @@ dim_customer = df.select(
     col("customer_pet_breed")
 ).distinct()
 
-# DimSeller
 dim_seller = df.select(
     col("sale_seller_id").alias("seller_id"),
     col("seller_first_name"),
@@ -43,7 +36,6 @@ dim_seller = df.select(
     col("seller_postal_code")
 ).distinct()
 
-# DimProduct
 dim_product = df.select(
     col("sale_product_id").alias("product_id"),
     col("product_name"),
@@ -63,7 +55,6 @@ dim_product = df.select(
     col("product_expiry_date")
 ).distinct()
 
-# DimStore
 dim_store = df.select(
     col("store_name").alias("store_id"),
     col("store_location"),
@@ -74,7 +65,6 @@ dim_store = df.select(
     col("store_email")
 ).distinct()
 
-# DimSupplier
 dim_supplier = df.select(
     col("supplier_name").alias("supplier_id"),
     col("supplier_contact"),
@@ -85,7 +75,6 @@ dim_supplier = df.select(
     col("supplier_country")
 ).distinct()
 
-# DimDate
 dim_date = df.select(
     col("sale_date").alias("date"),
     col("sale_date").cast("string").alias("date_string"),
@@ -96,7 +85,6 @@ dim_date = df.select(
     dayofweek(col("sale_date")).alias("day_of_week")
 ).distinct()
 
-# FactSales
 fact_sales = df.select(
     col("id").alias("sale_id"),
     col("sale_date"),
@@ -111,7 +99,6 @@ fact_sales = df.select(
     col("product_reviews")
 )
 
-# Запись измерений и фактов в PostgreSQL
 dim_customer.write.jdbc(
     url=jdbc_url,
     table="dim_customer",
